@@ -56,6 +56,7 @@ fits.athal <- data.frame(ID = character(),
                        Rd = numeric(),
                        theta = numeric(),
                        resid_SSs = numeric(),
+                       LCP = numeric(), # add light compensation point
                        stringsAsFactors = FALSE
 )
 
@@ -137,6 +138,17 @@ for(i in seq_along(unique(athal.lrc$ids))){
       fits.athal[i, 4] <- as.numeric(coef(temp.fit)[3])
       fits.athal[i, 5] <- as.numeric(coef(temp.fit)[4])
       fits.athal[i, 6] <- sum(resid(temp.fit)^2)
+      fits.athal[i, 7] <- ( # This is just the non-rectangular model 
+            # solved for Q, and Photo is dropped since at the light
+            # compensation point, net assimilation equals zero
+            ((as.numeric(coef(temp.fit)[3])) * 2 * 
+                   as.numeric(coef(temp.fit)[4]) + as.numeric(coef(temp.fit)[2])
+             + as.numeric(coef(temp.fit)[1]))^2 +
+                  (as.numeric(coef(temp.fit)[2]) + 
+                         as.numeric(coef(temp.fit)[1]))^2
+            ) / (
+                  4 * as.numeric(coef(temp.fit)[4]) * 
+                        as.numeric(coef(temp.fit)[1]))
 }
 fits.athal
 # Notice the resid_SSs are substantially higher with real data...
