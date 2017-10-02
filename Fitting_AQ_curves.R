@@ -51,13 +51,23 @@ fits.sim <- data.frame(ID = character(), #      group_id
                    stringsAsFactors = FALSE # (Oh, R...!)
 )
 fits.athal <- data.frame(ID = character(),
-                       Asat = numeric(),
-                       PhiCO2 = numeric(),
-                       Rd = numeric(),
-                       theta = numeric(),
-                       resid_SSs = numeric(),
-                       LCP = numeric(), # add light compensation point
-                       stringsAsFactors = FALSE
+                         Asat = numeric(),
+                         PhiCO2 = numeric(),
+                         Rd = numeric(),
+                         theta = numeric(),
+                         resid_SSs = numeric(),
+                         LCP = numeric(),
+                         Q_sat_75 = numeric(), # Assimilation saturating PARi,
+                         # assuming that net assimilation is 'saturated' at 
+                         # 75% of Asat
+                         Q_sat_85 = numeric(), # Same as Q_sat_75, with the 
+                         # assumption changed to 85% of Asat
+                         # NB: above 85% the results become especially 
+                         #    unreliable, yielding unreasonable values (e.g., 
+                         #    negative or greater Q than the sun at Earth's 
+                         #    surface), and even at 85% will often produce
+                         #    unreasonable values
+                         stringsAsFactors = FALSE
 )
 
 # Iterate through the simulated curves:
@@ -138,17 +148,45 @@ for(i in seq_along(unique(athal.lrc$ids))){
       fits.athal[i, 4] <- as.numeric(coef(temp.fit)[3])
       fits.athal[i, 5] <- as.numeric(coef(temp.fit)[4])
       fits.athal[i, 6] <- sum(resid(temp.fit)^2)
-      fits.athal[i, 7] <- ( # This is just the non-rectangular model 
-            # solved for Q, and Photo is dropped since at the light
-            # compensation point, net assimilation equals zero
-            ((as.numeric(coef(temp.fit)[3])) * 2 * 
-                   as.numeric(coef(temp.fit)[4]) + as.numeric(coef(temp.fit)[2])
-             + as.numeric(coef(temp.fit)[1]))^2 +
-                  (as.numeric(coef(temp.fit)[2]) + 
-                         as.numeric(coef(temp.fit)[1]))^2
-            ) / (
-                  4 * as.numeric(coef(temp.fit)[4]) * 
+      # LCP and and Q_sat_75/Q_sat_85 are calculated from a rearrangement of 
+      #     the non-rectangular hyperbola model solved for Q. Then for LCP,
+      #     Photo (net assimilation) is set to zero, while for Q_sat_75 and
+      #     Q_sat_85 Photo is set to (0.75 * Asat) or (0.85 * Asat)
+      fits.athal[i, 7] <- (as.numeric(coef(temp.fit)[3]) * (
+            as.numeric(coef(temp.fit)[3]) * as.numeric(coef(temp.fit)[4] - 
                         as.numeric(coef(temp.fit)[1]))
+      )) / (as.numeric(coef(temp.fit)[2]) * (
+            as.numeric(coef(temp.fit)[3]) - as.numeric(coef(temp.fit)[1])
+      ))
+      fits.athal[i, 8] <- (
+            (as.numeric(coef(temp.fit)[1]) * 0.75 + 
+                  (as.numeric(coef(temp.fit)[3]))) * (
+                  as.numeric(coef(temp.fit)[1]) * 0.75 *
+                  as.numeric(coef(temp.fit)[4]) +
+                  as.numeric(coef(temp.fit)[3]) *
+                  as.numeric(coef(temp.fit)[4]) -
+                  as.numeric(coef(temp.fit)[1])
+                   )) / (
+                        as.numeric(coef(temp.fit)[2])* (
+                        as.numeric(coef(temp.fit)[1]) * 0.75 +
+                        as.numeric(coef(temp.fit)[3]) -
+                        as.numeric(coef(temp.fit)[1])
+                         ))
+             
+      fits.athal[i, 9] <- (
+            (as.numeric(coef(temp.fit)[1]) * 0.85 + 
+                  (as.numeric(coef(temp.fit)[3]))) * (
+                  as.numeric(coef(temp.fit)[1]) * 0.85 *
+                  as.numeric(coef(temp.fit)[4]) +
+                  as.numeric(coef(temp.fit)[3]) *
+                  as.numeric(coef(temp.fit)[4]) -
+                  as.numeric(coef(temp.fit)[1])
+                   )) / (
+                         as.numeric(coef(temp.fit)[2])* (
+                         as.numeric(coef(temp.fit)[1]) * 0.85 +
+                         as.numeric(coef(temp.fit)[3]) -
+                         as.numeric(coef(temp.fit)[1])
+                         ))
 }
 fits.athal
 # Notice the resid_SSs are substantially higher with real data...
