@@ -112,3 +112,28 @@ fit_AQ_curve <- function(df, group_id, Photo, PARi){
       }
       return(AQ_curve_fits)
 }
+
+
+### Details ###
+# The non-rectangular hyperbola is the standard, widely-used, A-Q model. As fit
+      # here this is essentially the same as Equation 6 in Lobo et al. 2013 (
+      # Photosynthetica, v51, doi.org/10.1007/s11099-013-0045-y),
+      # Except, with the caveat that I am unsure how/why they modified the 
+      # equation to solve for light saturation values. Because I cannot follow 
+      # their logic, and it is not explicitly explained (or cited), I have 
+      # chosen a slightly different tactic. Namely, the non-rectangular 
+      # hyperbola model rearrannged for PARi solves to:
+      #       PARi = ( (A_n + Rd) * (A_n * theta + Rd * theta - Asat)/
+      #                     (Phi * (A_n + Rd - Asat)) )
+      # To solve for PARi at photosynthetic saturation ("Q_sat_75" and
+      # "Q_sat_85") I have entered entered Asat for A_n and reduced it 
+      # proportionally, i.e., Q_sat_75 uses 75% of the fit Asat (Asat * 0.75)
+      # and Q_sat_85 uses 85% of the fit Asat (Asat * 0.85). The values I have 
+      # gotten out for Q_sat_75 make sense and appear resonable. The values for
+      # Q_sat_85 are less so: they're often absurdly high, e.g., above 
+      # maximum solar PAR at earth's surface. If you are fitting AQ curves to
+      # figure out what light levels to use for measuring A_n under other 
+      # circumstances (A-Ci curves) and want to measure at 'saturating' yet not
+      # photoinhibitory PARi, my recommendation is to use Q_sat_75 and then add 
+      # 20% or so to it. For example, if Q_sat_75 is on average 1000 µmol m^-2 
+      # s^-1; adding 20% you should measure at 1200 µmol m^-2 s^-1.
