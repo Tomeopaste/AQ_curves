@@ -29,9 +29,9 @@
 # Run the below function code and then you can fit your curves like so:
 #
 #  fit_AQ_curve(my_df_of_AQ_curves, 
-#                  Photo = "Photo", 
-#                  PARi = "PARi", 
-#                  group_id = "group_id")
+#                  Photo = "Photo", # Enter the name of column of A_n vals
+#                  PARi = "PARi", # Same, but for irradiance values
+#                  group_id = "group_id") # Same, but for the group_id column
 
 fit_AQ_curve <- function(df, group_id, Photo, PARi){
       AQ_curve_fits <- data.frame(ID = character(),
