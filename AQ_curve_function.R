@@ -46,12 +46,16 @@ fit_AQ_curve <- function(df, group_id, Photo, PARi){
                                   stringsAsFactors = FALSE
       )
       for(i in seq_along(unique(df[[group_id]]))){
+            tryCatch({
             AQ_curve_fits[i, 1] <- unique(df[[group_id]])[i]
             # Subset by group_ID iteratively:
-            single_curve <- df[df[[group_id]] == unique(df[[group_id]])[i],]
-            single_curve$assim <- single_curve[[Photo]]
-            single_curve$PAR <- single_curve[[PARi]]
-            phi.as.slope <- with(single_curve,
+            single_curve1 <- df[df[[group_id]] == unique(df[[group_id]])[i],]
+            single_curve1$assim <- single_curve1[[Photo]]
+            single_curve1$PAR <- single_curve1[[PARi]]
+            # Reorder to assure PAR goes from low to high, allowing for the 
+                  # preliminary phi.as.slope estimate two lines below.
+            single_curve <- single_curve1[order(single_curve1$PAR),]
+            phi.as.slope <- with(single_curve, # use as starting value
                                     as.numeric(coef(lm(
                                           assim[1:5] ~ PAR[1:5]))[2]))
             # Fit the curve:
@@ -109,6 +113,7 @@ fit_AQ_curve <- function(df, group_id, Photo, PARi){
                                            as.numeric(coef(temp.fit)[3]) -
                                            as.numeric(coef(temp.fit)[1])
                                ))
+      }, error = function(E){cat("Error: ", conditionMessage(E), "\n")})
       }
       return(AQ_curve_fits)
 }
