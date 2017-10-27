@@ -79,9 +79,9 @@ fit_AQ_curve <- function(df, group_id, Photo, PARi){
             AQ_curve_fits[i, 5] <- as.numeric(coef(temp.fit)[4]) # theta
             AQ_curve_fits[i, 6] <- sum(resid(temp.fit)^2)
             AQ_curve_fits[i, 7] <- (as.numeric(coef(temp.fit)[3]) *(
-                  as.numeric(coef(temp.fit)[3]) * as.numeric(coef(temp.fit)[4] - 
+                  as.numeric(coef(temp.fit)[3]) * as.numeric(coef(temp.fit)[4]) - 
                                                                    as.numeric(coef(temp.fit)[1]))
-            )) / (as.numeric(coef(temp.fit)[2]) * (
+            ) / (as.numeric(coef(temp.fit)[2]) * (
                   as.numeric(coef(temp.fit)[3]) - as.numeric(coef(temp.fit)[1])
             ))
             AQ_curve_fits[i, 8] <- (
