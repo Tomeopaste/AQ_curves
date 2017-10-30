@@ -33,6 +33,13 @@
 #                  PARi = "PARi", # Same, but for irradiance values
 #                  group_id = "group_id") # Same, but for the group_id column
 
+# You can assign the output of this function to a variable as you would with
+#     any other R function for inspection, plotting, saving. For example:
+# my.fits <- fit_AQ_curve(my.data, 
+#                             Photo = "Photo", 
+#                             PARi = "PARi", 
+#                             group_id = "group_id")
+
 fit_AQ_curve <- function(df, group_id, Photo, PARi){
       AQ_curve_fits <- data.frame(ID = character(),
                                   Asat = numeric(),
