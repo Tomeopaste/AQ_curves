@@ -8,13 +8,13 @@
 
 # The function below will fit a photosynthetic light response curve to a non-
 #       rectangular hyperbola model. Supply the function with 
-#       1) a dataframe containing 
-#             i) a column of PAR values, 
-#             ii) a column of net photosynthesis values,
-#             iii) and a column with a group/curve identifier values
+#       1) a dataframe containing (df = "")
+#             i) a column of PAR values, (PARi = "")
+#             ii) a column of net photosynthesis values, (Photo = "")
+#             iii) a column of curve identifiers (group_id = "")
 #       2) the names of the above three columns 
 #
-# And the function will return a data frome that contains:
+# The function will return a data frome that contains:
 #     1) The group_id's
 #     2) Light saturated net photosynthesis (Asat)
 #     3) Quantum yield (Phi)
@@ -36,9 +36,9 @@
 # You can assign the output of this function to a variable as you would with
 #     any other R function for inspection, plotting, saving. For example:
 # my.fits <- fit_AQ_curve(my.data, 
-#                             Photo = "Photo", 
-#                             PARi = "PARi", 
-#                             group_id = "group_id")
+#                             Photo = "my_photo_values", 
+#                             PARi = "my_PARi_values", 
+#                             group_id = "my_group_id")
 
 fit_AQ_curve <- function(df, group_id, Photo, PARi, fit_type = "onls"){
       AQ_curve_fits <- data.frame(ID = character(),
@@ -213,14 +213,17 @@ fit_AQ_curve <- function(df, group_id, Photo, PARi, fit_type = "onls"){
 }
 
 
-
-### Details ###
+################################################################################
+########                      Details                                   ########
+################################################################################
+#
+######## The model: 
 # The non-rectangular hyperbola is the standard, widely-used, A-Q model. As fit
       # here this is essentially the same as Equation 6 in Lobo et al. 2013 (
       # Photosynthetica, v51, doi.org/10.1007/s11099-013-0045-y),
       # Except, with the caveat that I am unsure how/why they modified the 
       # equation to solve for light saturation values. Because I cannot follow 
-      # their logic, and it is not explicitly explained (or cited), I have 
+      # their logic, and it is not explained (or cited) there, I have 
       # chosen a slightly different tactic. Namely, the non-rectangular 
       # hyperbola model rearrannged for PARi solves to:
       #       PARi = ( (A_n + Rd) * (A_n * theta + Rd * theta - Asat)/
@@ -231,9 +234,36 @@ fit_AQ_curve <- function(df, group_id, Photo, PARi, fit_type = "onls"){
       # and Q_sat_85 uses 85% of the fit Asat (Asat * 0.85). The values I have 
       # gotten out for Q_sat_75 make sense and appear resonable. The values for
       # Q_sat_85 are less so: they're often absurdly high, e.g., above 
-      # maximum solar PAR at earth's surface. If you are fitting AQ curves to
-      # figure out what light levels to use for measuring A_n under other 
-      # circumstances (A-Ci curves) and want to measure at 'saturating' yet not
-      # photoinhibitory PARi, my recommendation is to use Q_sat_75 and then add 
+      # maximum solar PAR at earth's surface, or negative. If you are fitting 
+      # AQ curves to figure out what light levels to use for measuring A_n under 
+      # other circumstances (A-Ci curves) and want to measure at 'saturating' yet 
+      # not photoinhibitory PARi, my recommendation is to use Q_sat_75 and then add 
       # 20% or so to it. For example, if Q_sat_75 is on average 1000 µmol m^-2 
       # s^-1; adding 20% you should measure at 1200 µmol m^-2 s^-1.
+#
+################################################################################
+#
+######## The fitting behavior:
+# On 2017-11-07 (You better have voted today!) the default algorithm used for 
+      # fitting curves was changed. Originally I was using base::nls() with the
+      # port algorithm, but have now changed this to orthogonal difference 
+      # regression (ODR) using onls::onls(). The main reason for the change is
+      # philisophical - response curves necessarily create an errors-in-
+      # variables problem, i.e. despite the accuracy of measuring whatever is on
+      # the x-axis, there is still error that is unaccounted for. In the case
+      # here, PARi is measured fairly accuratley by the 6400/6800. But, when
+      # was the last time you calibrated the light source? Did you do it for the 
+      # particular species you are measuring? What proportion of the 
+      # chloroplasts in the leaf sample you measured do you suppose were 
+      # actually exposed to that measured PARi? That's what I thought! There is
+      # error in our PARi values, and nls() does not account for it. ODR does.
+      # Another, operationally more meaningful reason to use onls() is that in 
+      # my testing it will find a solution to curves that nls() does not. 
+      #
+      # The function will automatically load the onls package if it is 
+      # installed. It will attempt to download and install it beofre loading if
+      # it is not. 
+      #
+      # In any event, if you want to use base::nls() you do still have that 
+      # option. There is an optional 'fit_type' argument to the fit_AQ_curve()
+      # function. To use nls(), add fit_type = "nls" to your call. 
