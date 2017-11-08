@@ -58,7 +58,7 @@ fit_AQ_curve <- function(df, group_id, Photo, PARi, fit_type = "onls"){
       } else {
             print("trying to install onls")
             install.packages("onls")
-            if(require(lme4)){
+            if(require("onls")){
                   print("onls installed and loaded")
             } else {
                   stop("could not install onls")
