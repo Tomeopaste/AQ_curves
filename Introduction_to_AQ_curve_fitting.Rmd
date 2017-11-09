@@ -1,0 +1,437 @@
+---
+title: "AQ_curves_example"
+author: "Nick Tomeo"
+date: "11/7/2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Introduction
+This document is meant as an introduction to the AQ_curve functions I put together. My hope is that some examples of how they work will serve as a quick instructional how-to.
+
+To begin with let's load and familiarize ourselves with some of the example data files.
+```{r packages, include = FALSE}
+if (!require("RCurl", quietly=TRUE)) {
+    install.packages("RCurl")
+    library("RCurl")
+}
+```
+
+```{r load_data}
+a_thal = read.csv(text = getURL(
+      "https://raw.githubusercontent.com/Tomeopaste/AQ_curves/master/ExampleDataFiles/athal_LRCs.csv"), header = TRUE)
+dwarf = read.csv(text = getURL(
+      "https://raw.githubusercontent.com/Tomeopaste/AQ_curves/master/ExampleDataFiles/dwarfSunflower.csv"),header = TRUE)
+dwarf$ids = paste0(dwarf$Light, "_", dwarf$Replicate)
+head(a_thal)
+head(dwarf)
+```
+### Data
+
+Now we have `r length(unique(a_thal$ids))` light response curves measured on an assortment of *Arabidopsis thaliana* ecotypes. And, `r length(unique(dwarf$ids))` curves measured on dwarf sunflowers, 1 each at each combination of high-low nutrients and high-low irradiance. These look like your typical curves:
+
+```{r basic_curve_plots}
+par(mfrow=c(1,1), oma=c(1,1,1,1), mar=c(4,4,1,1))
+plot.ids = unique(dwarf$ids)
+for (i in seq_along(plot.ids)) {
+      plot(dwarf[dwarf$ids == plot.ids[i], "Photo"] ~ 
+                 dwarf[dwarf$ids == plot.ids[i], "PARi"],
+           xlab = "PARi", ylab = "Photo", pch=i,
+           xlim=c(-2,1600), ylim=c(
+                 min(dwarf$Photo)-2, max(dwarf$Photo)+2
+           ))
+      if(i < 3.5){par(new=TRUE)}
+}
+```
+
+### Fitting function
+
+The function in the script https://github.com/Tomeopaste/AQ_curves/blob/master/AQ_curve_function.R fits the light response data to a non-rectangular hyperbola model (Equation 6 in Lobo et al. 2013, Photosynthetica, v51, doi.org/10.1007/s11099-013-0045-y):
+
+$$A_{N} = \frac{\Phi*\mathit{Q}*A_{sat}-\sqrt{(\Phi*\mathit{Q}*A_{sat})^{2}-4*\Theta*\Phi*\mathit{Q}*A_{sat}}}{2*\Theta }-R_{d}$$
+
+Let's load in the fit_AQ_curve() function. NB: I recommend clicking the little triangle next to the top line (fit_AQ_curve <- function... ) to collapse the whole thing so you do not have to scroll through all 170 lines of it.
+```{r fitting_function}
+fit_AQ_curve <- function(df, group_id, Photo, PARi, fit_type = "onls"){
+      AQ_curve_fits <- data.frame(ID = character(),
+                                  Asat = numeric(),
+                                  Phi = numeric(),
+                                  Rd = numeric(),
+                                  theta = numeric(),
+                                  resid_SSs = numeric(),
+                                  LCP = numeric(),
+                                  Q_sat_75 = numeric(),
+                                  Q_sat_85 = numeric(),  
+                                  stringsAsFactors = FALSE
+      )
+      if(fit_type == "onls"){
+      if(require("onls")){
+            print("onls is loaded correctly")
+      } else {
+            print("trying to install onls")
+            install.packages("onls")
+            if(require(onls)){
+                  print("onls installed and loaded")
+            } else {
+                  stop("could not install onls")
+            }
+      }
+      library("onls")      
+      for(i in seq_along(unique(df[[group_id]]))){
+            tryCatch({
+                  AQ_curve_fits[i, 1] <- unique(df[[group_id]])[i]
+                  # Subset by group_ID iteratively:
+                  single_curve1 <- df[df[[group_id]] == unique(df[[group_id]])[i],]
+                  single_curve1$assim <- single_curve1[[Photo]]
+                  single_curve1$PAR <- single_curve1[[PARi]]
+                  single_curve = single_curve1[order(single_curve1$PAR),]
+                  phi.as.slope <- with(single_curve,
+                                       as.numeric(coef(lm(
+                                             assim[1:5] ~ PAR[1:5]))[2]))
+                  # Fit the curve:
+                  temp.fit <- with(single_curve, # use the subset of a single curve
+                                   onls(assim ~ ((Phi * PAR + Asat - 
+                                                       sqrt((Phi * PAR + Asat)^2 - 
+                                                                  4 * Phi * theta * 
+                                                                  Asat * PAR ))
+                                   )/(2*theta) - Rd,
+                                   start=list(
+                                         Asat = (max(assim)),
+                                         Phi = phi.as.slope,
+                                         Rd = -min(assim),
+                                         theta = 0.5),
+                                   control = list(maxiter = 50),
+                                   verbose = FALSE
+                                   )
+                  )
+                  AQ_curve_fits[i, 2] <- as.numeric(coef(temp.fit)[1]) # asat 
+                  AQ_curve_fits[i, 3] <- as.numeric(coef(temp.fit)[2]) # Phi
+                  AQ_curve_fits[i, 4] <- as.numeric(coef(temp.fit)[3]) # Rd
+                  AQ_curve_fits[i, 5] <- as.numeric(coef(temp.fit)[4]) # theta
+                  AQ_curve_fits[i, 6] <- sum(resid(temp.fit)^2)
+                  AQ_curve_fits[i, 7] <- (as.numeric(coef(temp.fit)[3]) *(
+                        as.numeric(coef(temp.fit)[3]) * as.numeric(coef(temp.fit)[4]) - 
+                              as.numeric(coef(temp.fit)[1]))
+                  ) / (as.numeric(coef(temp.fit)[2]) * (
+                        as.numeric(coef(temp.fit)[3]) - as.numeric(coef(temp.fit)[1])
+                  ))
+                  AQ_curve_fits[i, 8] <- (
+                        (as.numeric(coef(temp.fit)[1]) * 0.75 + 
+                               (as.numeric(coef(temp.fit)[3]))) * (
+                                     as.numeric(coef(temp.fit)[1]) * 0.75 *
+                                           as.numeric(coef(temp.fit)[4]) +
+                                           as.numeric(coef(temp.fit)[3]) *
+                                           as.numeric(coef(temp.fit)[4]) -
+                                           as.numeric(coef(temp.fit)[1])
+                               )) / (
+                                     as.numeric(coef(temp.fit)[2])* (
+                                           as.numeric(coef(temp.fit)[1]) * 0.75 +
+                                                 as.numeric(coef(temp.fit)[3]) -
+                                                 as.numeric(coef(temp.fit)[1])
+                                     ))
+                  
+                  AQ_curve_fits[i, 9] <- (
+                        (as.numeric(coef(temp.fit)[1]) * 0.85 + 
+                               (as.numeric(coef(temp.fit)[3]))) * (
+                                     as.numeric(coef(temp.fit)[1]) * 0.85 *
+                                           as.numeric(coef(temp.fit)[4]) +
+                                           as.numeric(coef(temp.fit)[3]) *
+                                           as.numeric(coef(temp.fit)[4]) -
+                                           as.numeric(coef(temp.fit)[1])
+                               )) / (
+                                     as.numeric(coef(temp.fit)[2])* (
+                                           as.numeric(coef(temp.fit)[1]) * 0.85 +
+                                                 as.numeric(coef(temp.fit)[3]) -
+                                                 as.numeric(coef(temp.fit)[1])
+                                     ))
+            }, error = function(E){cat("Error: ", conditionMessage(E), "\n")})
+      }
+      return(AQ_curve_fits)
+      } else{
+      if(fit_type == "nls"){
+            for(i in seq_along(unique(df[[group_id]]))){
+                  tryCatch({
+                  AQ_curve_fits[i, 1] <- unique(df[[group_id]])[i]
+                  # Subset by group_ID iteratively:
+                  single_curve1 <- df[df[[group_id]] == unique(df[[group_id]])[i],]
+                  single_curve1$assim <- single_curve1[[Photo]]
+                  single_curve1$PAR <- single_curve1[[PARi]]
+                  single_curve = single_curve1[order(single_curve1$PAR),]
+                  phi.as.slope <- with(single_curve,
+                                       as.numeric(coef(lm(
+                                             assim[1:5] ~ PAR[1:5]))[2]))
+                  # Fit the curve:
+                  temp.fit <- with(single_curve, 
+                                   nls(assim ~ ((Phi * PAR + Asat - 
+                                           sqrt((Phi * PAR + Asat)^2 - 
+                                                4 * Phi * theta * 
+                                                      Asat * PAR ))
+                                               )/(2*theta) - Rd,
+                                               start=list(
+                                                     Asat = (max(assim)),
+                                                     Phi = phi.as.slope,
+                                                     Rd = -min(assim),
+                                                     theta = 0.5),
+                                               control = list(maxiter = 50),
+                                               algorithm = "port")
+                              )
+                  AQ_curve_fits[i, 2] <- as.numeric(coef(temp.fit)[1]) # asat 
+                  AQ_curve_fits[i, 3] <- as.numeric(coef(temp.fit)[2]) # Phi
+                  AQ_curve_fits[i, 4] <- as.numeric(coef(temp.fit)[3]) # Rd
+                  AQ_curve_fits[i, 5] <- as.numeric(coef(temp.fit)[4]) # theta
+                  AQ_curve_fits[i, 6] <- sum(resid(temp.fit)^2)
+                  AQ_curve_fits[i, 7] <- (as.numeric(coef(temp.fit)[3]) *(
+                              as.numeric(coef(temp.fit)[3]) * 
+                              as.numeric(coef(temp.fit)[4]) - 
+                              as.numeric(coef(temp.fit)[1]))
+                              ) / (as.numeric(coef(temp.fit)[2]) * (
+                              as.numeric(coef(temp.fit)[3]) - 
+                                    as.numeric(coef(temp.fit)[1])
+                              ))
+                  AQ_curve_fits[i, 8] <- (
+                              (as.numeric(coef(temp.fit)[1]) * 0.75 + 
+                              (as.numeric(coef(temp.fit)[3]))) * (
+                              as.numeric(coef(temp.fit)[1]) * 0.75 *
+                              as.numeric(coef(temp.fit)[4]) +
+                              as.numeric(coef(temp.fit)[3]) *
+                              as.numeric(coef(temp.fit)[4]) -
+                              as.numeric(coef(temp.fit)[1])
+                              )) / (
+                              as.numeric(coef(temp.fit)[2])* (
+                              as.numeric(coef(temp.fit)[1]) * 0.75 +
+                              as.numeric(coef(temp.fit)[3]) -
+                              as.numeric(coef(temp.fit)[1])
+                              ))
+                  AQ_curve_fits[i, 9] <- (
+                              (as.numeric(coef(temp.fit)[1]) * 0.85 + 
+                              (as.numeric(coef(temp.fit)[3]))) * (
+                              as.numeric(coef(temp.fit)[1]) * 0.85 *
+                              as.numeric(coef(temp.fit)[4]) +
+                              as.numeric(coef(temp.fit)[3]) *
+                              as.numeric(coef(temp.fit)[4]) -
+                              as.numeric(coef(temp.fit)[1])
+                              )) / (
+                              as.numeric(coef(temp.fit)[2])* (
+                              as.numeric(coef(temp.fit)[1]) * 0.85 +
+                              as.numeric(coef(temp.fit)[3]) -
+                              as.numeric(coef(temp.fit)[1])
+                              ))
+                        }, error = function(E){
+                              cat("Error: ", conditionMessage(E), "\n")})
+                  }
+                  return(AQ_curve_fits)      
+            } else{print("ERROR: 'fit_type' specified incorrectly.")}
+      }
+}
+
+```
+
+Now to fit our curves we need to supply the function with the data as a data_frame plus three required arguments:   
+1. the name of the column in the data containing net photosynthetic values
+      + Photo = "my_photo_values"
+2. the name of the column containing irradiance values
+      + PARi = "my_irradiance_values"
+3. the name of the column with unique identifying information that differntiates the individual curves.
+      + group_id = "my_unique_curve_identifiers"
+  
+The function will return a data_frame that contains:
+1. The group_id's  
+2. Light saturated net photosynthesis (Asat)  
+3. Quantum yield (Phi)  
+4. Mitochondrial respiration in the light (Rd)  
+5. The curvature/convexivity factor of the curve (theta)  
+6. The model residual sum-of-squares (resid_SSs)  
+7. The light compensation point (LCP)  
+8. PARi at 75% saturation of photosynthesis (Q_sat_75) - reliable  
+9. PARi at 85% saturation (Q_sat_85) - much less reliable  
+
+A basic call will look like this:  
+   
+fit_AQ_curve(myData, Photo = "Photo", PARi = "PARi", group_id = "group_ids")
+  
+Try it out with the dwarf sunflower data:
+```{r dwarf_fits}
+fit_AQ_curve(dwarf, Photo = "Photo", PARi = "PARi", group_id = "ids")
+```
+You can *mostly* ignore the messages that come out of fit_AQ_curve(), with one caveat. The first time you use fit_AQ_curve(), it will attempt to install the **onls** package and if the installation fails you will recieve a message alerting you to that failure. If that happens you have two options: 1) install onls manually, or 2) run fit_AQ_curve() with the alternative fitting method (see *Fitting method* below).
+
+We can save the output as an object so that we can do other things with it - even if those things don't make a whole lot of sense with this example data. Here I save the fits to the sunflower data to the object dwarf_fits and run a t-test to compare A[sat] between the plants grown at high and low irradiance.
+```{r extended_dwarf_example}
+dwarf_fits = fit_AQ_curve(dwarf, Photo = "Photo", PARi = "PARi", group_id = "ids")
+dwarf_fits$trt = substr(dwarf_fits$ID, 1, 3) # create treatment variable
+t.test(dwarf_fits$Asat ~ dwarf_fits$trt)
+```
+
+We can similarly fit the larger *Arabidosis* ecotype dataset and summarise some of the results.
+```{r fitting_arabidopsis_data}
+athal_fits = fit_AQ_curve(a_thal,
+                          Photo = "Photo",
+                          PARi = "PARi",
+                          group_id = "ids")
+summary(athal_fits[,2:9])
+hist(athal_fits$Asat)
+hist(athal_fits$Phi)
+hist(athal_fits$Rd)
+hist(athal_fits$theta)
+plot(athal_fits$Asat ~ athal_fits$Rd)
+abline(lm(athal_fits$Asat ~ athal_fits$Rd))
+```
+
+### Fitting method
+
+When discussing the installation of the onls package above I mentioned an alternative fitting method. The default behavior is to use orthogonal difference regression to fit the curve with onls::onls(). In my experience this method is more reliable, and it avoids the error-in-variables problem that plagues many traditional curve fitting approaches. That being said, if for whatever reason you prefer base::nls(), you can use it (with algorithm = "port") by including the optional argument __fit_type = "nls"__ in your fit_AQ_curve call. In practice - on the curves I've tested - the differences in fit values between the two methods are too small to really matter, i.e., they're only different at approx. the sixth significant figure (see just below). *But*, onls() does produce fits on at least some curves where nls() fails, hence my using it as the default.
+
+```{r alt_fit_method}
+nls_dwarf_fits = fit_AQ_curve(dwarf,
+                              Photo = "Photo",
+                              PARi = "PARi",
+                              group_id = "ids",
+                              fit_type = "nls")
+dwarf_fits[,c(2:5,6:8)] - nls_dwarf_fits[,c(2:5,6:8)]
+```
+
+Again, when both methods work, it is clear that the differnces are trivial.
+
+### Assessing the quality of model fit
+
+Producing fits, and whether or not they are good fits, are two different things. fit_AQ_curve() currently only calculates the residual sum-of-squares for the fit model - I am happy to add a better metric if anybody wants to convince me of such a metric. Resid-SS's will give you a metric of fit relative to the rest of your fits, i.e., if Resid-SS's for one or more of your curves are an order of magnitude higher than the rest, you should be suspect. Still, this is not terribly informative and is why the diagnostic_AQ_plot_function.R script exists. The diagnostic_AQ_plot() function will plot all of your fit curves on top of the original gas-exchange data. 
+
+diagnostic_AQ_plot() has eight arguments:
+1. curve_data = myGasExchangeData
+      + the data_frame of gas exchange data originally passed to fit_AQ_curve
+2. fit_data = my_fit_AQ_curve() output
+      + the data_frame of fits output by fit_AQ_curve
+3. Photo = "myPhotoVals"
+      + the name of the net assimilation/Photo column in the GE data_frame
+4. PARi = "myPARiVals"
+      + the name of the irradiance/PARi column in the GE data_frame
+5. group_id = "myCurveIDs"
+      + the name of the curve identifier column in the GE data_frame
+And, optionally:
+6. save_to_pdf = TRUE or FALSE
+      + a logical, default is FALSE. If save_to_pdf = TRUE, you must also provide the seventh and eighth arguments. Together they will output all plots to a PDF file in the location of your choosing, with the name of your choosing.
+7. save_path = "/Users/me/R/LightResponseCurves/Fit_Plots"
+      + an existing file-path where you want the PDF output saved
+8. file_name = "my_AQ_curve_fit_plots.pdf"
+      + a name for the PDF file
+
+If you have only of couple of curves to interogate then the first five arguments are sufficient and you can just scroll through the plots to check out their fits:
+```{r prelim_AQ_plots}
+diagnostic_AQ_plot <- function(curve_data, fit_data, Photo, PARi, group_id,
+                               save_to_pdf = FALSE, save_path, file_name){
+      if(save_to_pdf == FALSE){ 
+            par(mar = c(3, 3, 1, 1), oma = c(1, 1, 1, 1))
+            for(i in seq_along(1:length(unique(curve_data[[group_id]])))){
+                  single_curve <- 
+                        curve_data[curve_data[[group_id]] == 
+                                         unique(curve_data[[group_id]])[i],]
+                  plot(
+                        single_curve[[Photo]] ~ single_curve[[PARi]] ,
+                        xlim = c(-2, max(curve_data[[PARi]])), 
+                        ylim = c(min(curve_data[[Photo]]) - 2,
+                                 max(curve_data[[Photo]]) + 2),
+                        pch = 3,
+                        cex = 2,
+                        xlab = "",
+                        ylab = "",
+                        main = paste("Data from curve ",
+                                     as.character(
+                                           unique(single_curve[[group_id]])))
+                  )
+                  mtext(expression("Photo (µmol "*CO[2]*" "*m^-2*" "*s^-1*")"),
+                        line = 2.4, side = 2)
+                  mtext(expression("PARi (µmol photons "*m^-2*" "*s^-1*")"),
+                        line = 2.4, side = 1)
+                  par(new = TRUE)
+                  curve(((
+                        fit_data$Phi[i] * PARi + fit_data$Asat[i] - 
+                              sqrt((fit_data$Phi[i] * PARi + fit_data$Asat[i])^2 - 4 *
+                                         fit_data$Phi[i] * fit_data$theta[i] * PARi *
+                                         fit_data$Asat[i])
+                  ) / (2*fit_data$theta[i]) - fit_data$Rd[i]),
+                  from = 0, to = 1600, 
+                  xname = "PARi",
+                  xlab = "", ylab = "", 
+                  xlim = c(-2, max(curve_data[[PARi]])), 
+                  ylim = c(min(curve_data[[Photo]]) - 2,
+                           max(curve_data[[Photo]]) + 2),
+                  axes = FALSE,
+                  col = "red",
+                  lwd = 2
+                  )
+            }} else{
+             if(dir.exists(save_path)){
+      pdf(paste0(save_path, file_name, ".pdf"))
+      par(mar = c(3, 3, 1, 1), oma = c(1, 1, 1, 1))
+      for(i in seq_along(1:length(unique(curve_data[[group_id]])))){
+            single_curve <- 
+                  curve_data[curve_data[[group_id]] == 
+                                   unique(curve_data[[group_id]])[i],]
+            plot(
+                  single_curve[[Photo]] ~ single_curve[[PARi]] ,
+                  xlim = c(-2, max(curve_data[[PARi]])), 
+                  ylim = c(min(curve_data[[Photo]]) - 2,
+                           max(curve_data[[Photo]]) + 2),
+                  pch = 3,
+                  cex = 2,
+                  xlab = "",
+                  ylab = "",
+                  main = paste("Data from curve ",
+                               as.character(
+                                     unique(single_curve[[group_id]])))
+            )
+            mtext(expression("Photo (µmol "*CO[2]*" "*m^-2*" "*s^-1*")"),
+                  line = 2.4, side = 2)
+            mtext(expression("PARi (µmol photons "*m^-2*" "*s^-1*")"),
+                  line = 2.4, side = 1)
+            par(new = TRUE)
+            curve(((
+                  fit_data$Phi[i] * PARi + fit_data$Asat[i] - 
+                        sqrt((fit_data$Phi[i] * PARi + fit_data$Asat[i])^2 - 4 *
+                                   fit_data$Phi[i] * fit_data$theta[i] * PARi *
+                                   fit_data$Asat[i])
+            ) / (2*fit_data$theta[i]) - fit_data$Rd[i]),
+            from = 0, to = 1600, 
+            xname = "PARi",
+            xlab = "", ylab = "", 
+            xlim = c(-2, max(curve_data[[PARi]])), 
+            ylim = c(min(curve_data[[Photo]]) - 2,
+                     max(curve_data[[Photo]]) + 2),
+            axes = FALSE,
+            col = "red",
+            lwd = 2
+            )
+            }
+      dev.off()
+             } else {
+            return(
+                  "Warning: the file path provided to save_path does not exist"
+            )}
+            
+}
+}
+diagnostic_AQ_plot(dwarf, 
+                   dwarf_fits,
+                   Photo = "Photo",
+                   PARi = "PARi",
+                   group_id = "ids")
+```
+
+As you can see this will allow you to quickly assess how well each of the fit-curves actually fits your data. These particular fits look quite good with the fit-curve falling on top of most of the original data points.
+
+If you have more than a couple of curves, arrowing through them in the plot window is tiresome. You might want to put the plots someplace where you can more easily scroll through them or where you can save them for future reference. That is why the optional arguments exist. You can try this out with the code chunk just below by entering a real file path to the save_path argument.
+
+```{r saving_AQ_plots}
+diagnostic_AQ_plot(a_thal, 
+                   athal_fits,
+                   Photo = "Photo",
+                   PARi = "PARi",
+                   group_id = "ids",
+                   save_to_pdf = TRUE,
+                   save_path = "/Users/path/to/where/I/want/these",
+                   file_name = "A_thal_AQ_plots.PDF")
+```
+
