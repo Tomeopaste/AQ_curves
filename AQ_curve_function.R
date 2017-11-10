@@ -245,8 +245,8 @@ fit_AQ_curve <- function(df, group_id, Photo, PARi, fit_type = "onls"){
 #
 ######## The fitting behavior:
 # On 2017-11-07 (You better have voted today!) the default algorithm used for 
-      # fitting curves was changed. Originally I was using base::nls() with the
-      # port algorithm, but have now changed this to orthogonal difference 
+      # fitting curves was changed. Originally base::nls() was used with the
+      # port algorithm, but have now changed this to orthogonal distance 
       # regression (ODR) using onls::onls(). The main reason for the change is
       # philisophical - response curves necessarily create an errors-in-
       # variables problem, i.e. despite the accuracy of measuring whatever is on
@@ -257,7 +257,7 @@ fit_AQ_curve <- function(df, group_id, Photo, PARi, fit_type = "onls"){
       # chloroplasts in the leaf sample you measured do you suppose were 
       # actually exposed to that measured PARi? That's what I thought! There is
       # error in our PARi values, and nls() does not account for it. ODR does.
-      # Another, operationally more meaningful reason to use onls() is that in 
+      # Another, operationally more meaningful, reason to use onls() is that in 
       # my testing it will find a solution to curves that nls() does not. 
       #
       # The function will automatically load the onls package if it is 
