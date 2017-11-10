@@ -20,7 +20,7 @@ In this repo you will find:
 
 ### Description
 
-Fits a non-rectangular hyperbola model to photosynthetic light response gas exchange data and solves for the commonly used parameters: light-saturated photosynthetic rate (A~sat~), quantum efficiency ($\Phi$), mitochondrial respiration in the light (R~d~), curvature/convexivity of light saturation ($\Theta$), light compensation point (LCP), and the irradiance required to saturate photosynthesis.
+Fits a non-rectangular hyperbola model to photosynthetic light response gas exchange data and solves for the commonly used parameters: light-saturated photosynthetic rate (A_sat), quantum efficiency (Phi), mitochondrial respiration in the light (R_d), curvature/convexivity of light saturation (Theta), light compensation point (LCP), and the irradiance required to saturate photosynthesis.
     
 ### Usage    
     
