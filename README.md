@@ -63,7 +63,7 @@ Returns an object of class data.frame that contains nine columns:
 Default fitting with orthogonal distance regression, i.e., `onls::onls()`:   
 `fit_AQ_curve(df = soy_AQ_curves, group_id = "curve_ids", Photo = "Photo", PARi = "PARi")`   
 
-Fitting with standard least-squares non-linear regression, i.e., `base::bls()`   
+Fitting with standard least-squares non-linear regression, i.e., `base::nls()`   
 `fit_AQ_curve(df = soy_AQ_curves, group_id = "curve_ids", Photo = "Photo", PARi = "PARi", fit_type = "nls")`   
 
 [link to Lobo, et al., 2013]: http://doi.org/10.1007/s11099-013-0045-y
