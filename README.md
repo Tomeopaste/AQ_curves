@@ -38,7 +38,7 @@ Argument      | Description
 
 ### Details   
 
-The model fit is the standard non-rectangular hyperbola (e.g., see Lobo et al., 2013, _Photosynthetica_, v51, (doi.org/10.1007/s11099-013-0045-y)[http://doi.org/10.1007/s11099-013-0045-y]) of the form:   
+The model fit is the standard non-rectangular hyperbola (e.g., see Lobo et al., 2013, _Photosynthetica_, v51, (doi.org/10.1007/s11099-013-0045-y)[link to Lobo, et al., 2013]) of the form:   
 A_N = ((Phi x Q + A_sat - sqrt[(Phi x Q + A_sat)^2 - 4 x Theta x Phi x Q x A_sat])/(2 x Theta)] - R_d  
 where, A_N (µmol CO_2 m^-2 s^-1) is the net photosynthetic rate, Phi (mol CO_2 mol^-1 photons) is quantum efficiency, Q (µmol photons m^-2 s^-1) is irradiance in the range of photosynthetically active radiation, A_sat (µmol CO_2 m^-2 s^-1) is the light-saturated photosynthetic rate, Theta (unitless, range 0-1) is a convexivity parameter relating the curvature of the response, and R_d (µmol CO_2 m^-2 s^-1) is the respiration rate in the day/light.
 NB: GitHub needs support for LaTeX equation rendering in markdown files.
@@ -65,3 +65,5 @@ Default fitting with orthogonal distance regression, i.e., `onls::onls()`:
 
 Fitting with standard least-squares non-linear regression, i.e., `base::bls()`   
 `fit_AQ_curve(df = soy_AQ_curves, group_id = "curve_ids", Photo = "Photo", PARi = "PARi", fit_type = "nls")`   
+
+[link to Lobo, et al., 2013]: http://doi.org/10.1007/s11099-013-0045-y
