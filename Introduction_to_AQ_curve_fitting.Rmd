@@ -267,7 +267,7 @@ Argument      | Description
 `group_id`    | The name of the column containing curve identification values.
 `Photo`       | The name of the column containing net photosynthetic values.
 `PARi`        | The name of the column containing irradiance values.
-`fit_type`    | The type of regression model to use for fitting. Defaults to orthogonal difference with `onls::onls()`. Can optionally be switched to `base::nls()` by explicityly setting to "nls". More detail on this below.
+`fit_type`    | The type of regression model to use for fitting. Defaults to orthogonal distance with `onls::onls()`. Can optionally be switched to `base::nls()` by explicityly setting to "nls". More detail on this below.
 ________________________________________________________________________________
 ________________________________________________________________________________
 ________________________________________________________________________________
@@ -329,7 +329,7 @@ abline(lm(athal_fits$Asat ~ athal_fits$Rd))
 
 ### Fitting method
 
-When discussing the installation of the `onls` package above I mentioned an alternative fitting method. The default behavior is to use orthogonal difference regression to fit the curve with `onls::onls()`. In my experience this method is more reliable, and it avoids the error-in-variables problem that plagues many traditional curve fitting approaches. That being said, if for whatever reason you prefer `base::nls()`, you can use it (with `algorithm = "port"`) by including the optional argument `fit_type = "nls"`" in your `fit_AQ_curve()` call. In practice - on the curves I've tested - the differences in fit values between the two methods are too small to really matter, i.e., they're only different at approximately the sixth significant figure (see just below). *But*, `onls()` does produce fits on at least some curves where `nls()` fails, hence using it as the default.
+When discussing the installation of the `onls` package above I mentioned an alternative fitting method. The default behavior is to use orthogonal distance regression to fit the curve with `onls::onls()`. In my experience this method is more reliable, and it avoids the error-in-variables problem that plagues many traditional curve fitting approaches. That being said, if for whatever reason you prefer `base::nls()`, you can use it (with `algorithm = "port"`) by including the optional argument `fit_type = "nls"`" in your `fit_AQ_curve()` call. In practice - on the curves I've tested - the differences in fit values between the two methods are too small to really matter, i.e., they're only different at approximately the sixth significant figure (see just below). *But*, `onls()` does produce fits on at least some curves where `nls()` fails, hence using it as the default.
 
 ```{r alt_fit_method}
 nls_dwarf_fits = fit_AQ_curve(dwarf, # Same call except...
