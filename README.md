@@ -1,5 +1,9 @@
 # AQ_curves
 
+
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.3497557.svg)](https://doi.org/10.5281/zenodo.3497557)
+
+
 Fitting [multiple] photosynthetic light response curves in R [simultaneously].
 
 In this repo you will find:
